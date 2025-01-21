@@ -68,7 +68,12 @@ func (a *Agent) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to use tool: %w", err)
 	}
 
-	fmt.Println(response)
+	fmt.Println(response.Content)
+
+	// Complete the action
+	if err := tool.Use(ctx, response.Content); err != nil {
+		return fmt.Errorf("failed to use tool: %w", err)
+	}
 
 	return nil
 }
