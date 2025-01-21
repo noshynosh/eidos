@@ -1,4 +1,4 @@
-package gent
+package llm
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ const (
 	ollamaURL = "http://localhost:11434"
 )
 
-type llamaClient struct {
-	client *http.Client
+type OllamaClient struct {
+	Client *http.Client
 }
 
 type generateRequest struct {
@@ -23,7 +23,7 @@ type generateRequest struct {
 }
 
 // Let's make a generate function as well
-func (l *llamaClient) Generate(ctx context.Context, prompt string) (string, error) {
+func (l *OllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
 	generateReq := generateRequest{
 		Model:  "llama3.2",
 		Prompt: prompt,
@@ -41,7 +41,7 @@ func (l *llamaClient) Generate(ctx context.Context, prompt string) (string, erro
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := l.client.Do(req)
+	resp, err := l.Client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -56,42 +56,44 @@ func (l *llamaClient) Generate(ctx context.Context, prompt string) (string, erro
 }
 
 type chatRequest struct {
-	Model    string    `json:"model"`
-	Messages []message `json:"messages"`
-	Stream   bool      `json:"stream"`
+	Model    string        `json:"model"`
+	Messages []ChatMessage `json:"messages"`
+	Stream   bool          `json:"stream"`
 }
 
-type message struct {
+type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-func (l *llamaClient) Chat(ctx context.Context, prompt string) (string, error) {
+func (l *OllamaClient) Chat(
+	ctx context.Context,
+	newMessage string,
+	oldMessages ...ChatMessage,
+) (ChatMessage, error) {
 	chatReq := chatRequest{
 		Model: "llama3.2",
-		Messages: []message{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
+		Messages: append(oldMessages, ChatMessage{
+			Role:    "user",
+			Content: newMessage,
+		}),
 		Stream: false,
 	}
 
 	reqBody, err := json.Marshal(chatReq)
 	if err != nil {
-		return "", err
+		return ChatMessage{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ollamaURL+"/api/chat", bytes.NewBuffer(reqBody))
 	if err != nil {
-		return "", err
+		return ChatMessage{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := l.client.Do(req)
+	resp, err := l.Client.Do(req)
 	if err != nil {
-		return "", err
+		return ChatMessage{}, err
 	}
 	defer resp.Body.Close()
 
@@ -105,12 +107,15 @@ func (l *llamaClient) Chat(ctx context.Context, prompt string) (string, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return ChatMessage{}, err
 	}
 
 	if err = json.Unmarshal(body, &rm); err != nil {
-		return "", err
+		return ChatMessage{}, err
 	}
 
-	return rm.Message.Content, nil
+	return ChatMessage{
+		Role:    "assistant",
+		Content: rm.Message.Content,
+	}, nil
 }

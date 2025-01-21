@@ -5,92 +5,67 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/noshynosh/eidos/kit"
+	"github.com/noshynosh/eidos/kit/twitter"
+	"github.com/noshynosh/eidos/llm"
+	"github.com/noshynosh/eidos/worm"
 )
 
 type Agent struct {
-	name       string
-	objective  string     // what the agent is trying to achieve
-	background string     // background information about the agent
-	traits     []string   // traits of the agent
-	tools      []kit.Tool // tools the agent can use
-
-	// Ollama LLM
-	llm *llamaClient
+	llm  *llm.OllamaClient // LLM client
+	worm worm.MockWorm     // Worm client
 }
 
-func NewAgent(name, objective, background string, traits []string, tools []kit.Tool) *Agent {
+func NewAgent() *Agent {
 	return &Agent{
-		name:       name,
-		objective:  objective,
-		background: background,
-		traits:     traits,
-		tools:      tools,
-		llm:        &llamaClient{client: &http.Client{}},
+		llm: &llm.OllamaClient{Client: &http.Client{}},
 	}
 }
 
+// Run starts the agent's execution. It will first seed the LLM with an initial
+// prompt and then continue to run the agent until the context is cancelled.
 func (a *Agent) Run(ctx context.Context) error {
-	// Construct the initial LLM prompt message. This involves the following:
-	// 1. The agent's name and objective
-	// 2. The agent's background
-	// 3. The agent's traits
-	// 4. The agent's tools (iterating over the tools and calling their description method)
-	toolsPrompt, err := a.constructToolsPrompt()
+	messages := make([]llm.ChatMessage, 0)
+	seedResp, err := a.seedLLM(ctx)
 	if err != nil {
 		return err
 	}
+	messages = append(messages, seedResp)
 
-	prompt := fmt.Sprintf(`
-		You are %s. Your objective is to %s.
-		
-		A bit about you:
-		  %s
-		
-		Your traits are:
-		  - %s
+	actions := make([]Action, 0)
+	if err := json.Unmarshal([]byte(seedResp.Content), &actions); err != nil {
+		return fmt.Errorf("failed to unmarshal actions: %w", err)
+	}
 
-		You can utilize tools. A tool is a function that you can call to perform a task. In order to use a tool, you must follow the manual for the tool exactly. If you wish to use a tool, you must provide a response that follows the below format:
-		{
-			"indicator": "<indicator>",
-			"<arg1>": "<value1>",
-			"<arg2>": "<value2>",
-			...
-		}
+	fmt.Println(actions)
 
-		For example a tools manual may be:
-		{"description", "This tool allows you to sleep for a given amount of time in seconds", "indicator": "sleep","duration": "10"}
+	bestAction := a.WormSelection(actions)
+	fmt.Println(bestAction.Action)
 
-		If you wish to use the sleep tool, you must provide a response like:
-		{"indicator": "sleep", "duration": "10"}
+	// temp
+	bestAction.Action = actionTweet
 
-		IMPORTANT: If you wish to use a tool, you must ONLY respond in this format:
-		{
-			"indicator": "<indicator>",
-			"<arg1>": "<value1>",
-			...
-		}
-		DO NOT write anything else outside this format. Do not explain, introduce, or summarize.
+	var tool kit.Tool
+	switch bestAction.Action {
+	case actionTweet:
+		tool = &twitter.TweetTool{}
+	// case actionReply:
+	// 	replyTool := twitter.ReplyTool{}
+	// 	replyTool.Use(ctx, bestAction.Action)
+	// case actionResearch:
+	// 	researchTool := twitter.ResearchTool{}
+	// 	researchTool.Use(ctx, bestAction.Action)
+	default:
+		return fmt.Errorf("unknown action: %s", bestAction.Action)
+	}
 
-		You have the following tools at your disposal:
-		%s
+	toolPrompt := kit.BuildToolPrompt(tool)
+	fmt.Println(toolPrompt)
 
-		You will either be given a task to complete or you are free to operate how you see fit given the above information.
-	`,
-		a.name,
-		a.objective,
-		a.background,
-		strings.Join(a.traits, ", "),
-		toolsPrompt,
-	)
-
-	fmt.Println(prompt)
-
-	response, err := a.llm.Chat(ctx, prompt)
+	response, err := a.llm.Chat(ctx, toolPrompt, messages...)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to use tool: %w", err)
 	}
 
 	fmt.Println(response)
@@ -98,23 +73,34 @@ func (a *Agent) Run(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) constructToolsPrompt() (string, error) {
-	type toolInfo struct {
-		Description string `json:"description"`
-		Manual      string `json:"manual"`
-	}
-	tools := []toolInfo{}
-	for _, tool := range a.tools {
-		tools = append(tools, toolInfo{
-			Description: tool.Description(),
-			Manual:      tool.Manual(),
-		})
-	}
-
-	toolsJSON, err := json.Marshal(tools)
+func (a *Agent) seedLLM(ctx context.Context) (llm.ChatMessage, error) {
+	response, err := a.llm.Chat(ctx, seedPrompt)
 	if err != nil {
-		return "", err
+		return llm.ChatMessage{}, fmt.Errorf("failed to seed LLM: %w", err)
 	}
 
-	return string(toolsJSON), nil
+	return response, nil
+}
+
+type Action struct {
+	Action     string `json:"action"`
+	Chemotaxis int    `json:"chemotaxis"`
+	NoseTouch  int    `json:"nose_touch"`
+}
+
+func (a *Agent) WormSelection(actions []Action) Action {
+	var bestAction Action
+	var bestScore int
+	for _, action := range actions {
+		chemoResp := a.worm.Chemotaxis(action.Chemotaxis)
+		noseResp := a.worm.NoseTouch(action.NoseTouch)
+
+		newScore := chemoResp + noseResp
+		if newScore > bestScore {
+			bestAction = action
+			bestScore = newScore
+		}
+	}
+
+	return bestAction
 }
