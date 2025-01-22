@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/noshynosh/eidos/kit"
+	"github.com/noshynosh/eidos/kit/research"
+	"github.com/noshynosh/eidos/kit/sleep"
 	"github.com/noshynosh/eidos/kit/twitter"
 	"github.com/noshynosh/eidos/llm"
 	"github.com/noshynosh/eidos/worm"
@@ -43,19 +45,16 @@ func (a *Agent) Run(ctx context.Context) error {
 	bestAction := a.WormSelection(actions)
 	fmt.Println(bestAction.Action)
 
-	// temp
-	bestAction.Action = actionTweet
-
 	var tool kit.Tool
 	switch bestAction.Action {
 	case actionTweet:
 		tool = &twitter.TweetTool{}
-	// case actionReply:
-	// 	replyTool := twitter.ReplyTool{}
-	// 	replyTool.Use(ctx, bestAction.Action)
-	// case actionResearch:
-	// 	researchTool := twitter.ResearchTool{}
-	// 	researchTool.Use(ctx, bestAction.Action)
+	case actionReply:
+		tool = &twitter.ReplyTool{}
+	case actionResearch:
+		tool = &research.Researcher{}
+	case actionSleep:
+		tool = &sleep.Sleeper{}
 	default:
 		return fmt.Errorf("unknown action: %s", bestAction.Action)
 	}

@@ -13,20 +13,26 @@ func (s *Sleeper) Description() string {
 }
 
 func (s *Sleeper) Manual() string {
-	return `{"indicator": "sleep", "duration": "<duration>", "description": "Sleep for a given amount of time where <duration> is in seconds"}`
+	return `
+		You will be need to provide a duration to sleep for. The duration will be in seconds. It should be a whole number,
+		between 1 and 10.
+
+		Do not include quotes in your response.
+	`
 }
 
 type sleepRequest struct {
 	Duration time.Duration `json:"duration"`
 }
 
-func (s *Sleeper) Use(ctx context.Context, req any) (string, error) {
+func (s *Sleeper) Use(ctx context.Context, req any) error {
 	reqObj, ok := req.(sleepRequest)
 	if !ok {
-		return "", fmt.Errorf("expected duration to be a time.Duration")
+		return fmt.Errorf("expected duration to be a time.Duration")
 	}
 
+	fmt.Println("Sleeping for", reqObj.Duration)
 	time.Sleep(reqObj.Duration)
 
-	return "Slept for " + reqObj.Duration.String(), nil
+	return nil
 }

@@ -4,6 +4,7 @@ const (
 	actionTweet    = "post_tweet"
 	actionReply    = "reply_to_tweet"
 	actionResearch = "research"
+	actionSleep    = "sleep"
 
 	seedPrompt = `
 		You are an RL agent. You are unique in that you will be fused with the C. Elagans worm. The worm will act as
@@ -19,11 +20,12 @@ const (
 		1. "post_tweet" - Post a tweet
 		2. "reply_to_tweet" - Reply to a tweet
 		3. "research" - Research a topic so that it might inform a future action
+		4. "sleep" - Sleep for a given amount of time
 
 		Content can range from deep thoughts to memes. You can post anything you want as long as it is relevant to DeSci
 		and DeAI.
 
-		IMPORTANT: You will always present all 3 options to the worm. However, with each action you will provide a
+		IMPORTANT: You will always present all 4 options to the worm. However, with each action you will provide a
 		chemotaxis and nose_touch score. The worm will use these scores to determine how to act.
 
 		The format MUST FOLLOW the below format:
