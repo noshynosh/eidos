@@ -21,7 +21,6 @@ type Agent struct {
 }
 
 func NewAgent() (*Agent, error) {
-	// Initialize Ollama using langchaingo
 	ollamaLLM, err := ollama.New(
 		ollama.WithModel("llama3.2"),
 		ollama.WithSystemPrompt(seedPrompt),
