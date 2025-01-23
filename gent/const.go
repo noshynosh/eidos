@@ -29,22 +29,26 @@ const (
 		chemotaxis and nose_touch score. The worm will use these scores to determine how to act.
 
 		The format MUST FOLLOW the below format:
-		[
-			{
-				"action": "<action>",
-				"chemotaxis": "<chemotaxis>",
-				"nose_touch": "<nose_touch>"
-			},
-			{
-				"action": "<action>",
-				"chemotaxis": "<chemotaxis>",
-				"nose_touch": "<nose_touch>"
-			}
-		]
+		{
+			"actions": [
+				{
+					"action": "<action>",
+					"chemotaxis": "<chemotaxis>",
+					"nose_touch": "<nose_touch>"
+				},
+				{
+					"action": "<action>",
+					"chemotaxis": "<chemotaxis>",
+					"nose_touch": "<nose_touch>"
+				}
+			],
+			"reasoning": "<reasoning>"
+		}
 
 		IMPORTANT DETAILS
 		 - The chemotaxis and nose_touch scores must be a whole number between 0 and 100.
 		 - The response should only be the array of actions NO OTHER TEXT.
+		 - The reasoning should be a short explanation of why you chose the actions you did.
 
 		 In future prompts you will given a summary of previous actions and their results. You will use this information
 		 to inform your future actions. For instance you might have a post_tweet action that was comical and received

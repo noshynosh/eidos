@@ -13,6 +13,8 @@ func (t *TweetTool) Manual() string {
 		To use this tool you must provide a message to tweet. The message will be the entire content of your response.
 		Anything you write will be tweeted! Make sure to only include the message you want to tweet.
 
+		Please write your tweet.
+
 		Do not include quotes in your response.
 	`
 }
